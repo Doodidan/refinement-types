@@ -7,12 +7,22 @@ class RefinementType {
     this.matcher = matcher;
   }
 
-  test(data: any) : boolean {
+  test(data: any): boolean {
     return this.matcher(data);
   }
 
   match(data: any) {
     return this.test(data);
+  }
+
+  and(type: RefinementType): RefinementType {
+    return new RefinementType((data: any) => this.matcher(data) && type.matcher(data));
+  }
+  or(type: RefinementType): RefinementType {
+    return new RefinementType((data: any) => this.matcher(data) || type.matcher(data));
+  }
+  not(): RefinementType {
+    return new RefinementType((data: any) => !this.matcher(data));
   }
 };
 
