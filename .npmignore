@@ -1,0 +1,8 @@
+node_modules/
+src/
+.github/
+.editorconfig
+
+.cache/
+
+.DS_Store
