@@ -1,10 +1,12 @@
-import type { Matcher } from './types';
+import type { Matcher, DuoRefinementTypeCompositionOptions, RefinementTypeOptions, SingleRefinementTypeCompositionOptions, Name } from './types';
 
 class RefinementType {
   private matcher: Matcher;
+  name: Name | undefined;
 
-  constructor(matcher: Matcher) {
+  constructor({ matcher, name }: RefinementTypeOptions) {
     this.matcher = matcher;
+    this.name = name;
   }
 
   test(data: any): boolean {
@@ -15,14 +17,14 @@ class RefinementType {
     return this.test(data);
   }
 
-  and(type: RefinementType): RefinementType {
-    return new RefinementType((data: any) => this.matcher(data) && type.matcher(data));
+  and({ type, name }: DuoRefinementTypeCompositionOptions): RefinementType {
+    return new RefinementType({ name, matcher: (data: any) => this.matcher(data) && type.matcher(data) });
   }
-  or(type: RefinementType): RefinementType {
-    return new RefinementType((data: any) => this.matcher(data) || type.matcher(data));
+  or({ type, name }: DuoRefinementTypeCompositionOptions): RefinementType {
+    return new RefinementType({ name, matcher: (data: any) => this.matcher(data) || type.matcher(data) });
   }
-  not(): RefinementType {
-    return new RefinementType((data: any) => !this.matcher(data));
+  not({ name }: SingleRefinementTypeCompositionOptions): RefinementType {
+    return new RefinementType({ name, matcher: (data: any) => !this.matcher(data) });
   }
 };
 
