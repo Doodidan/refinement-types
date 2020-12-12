@@ -1,6 +1,6 @@
 {
   "name": "refinement-types",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Refinement types system for runtime type and contracts checking",
   "main": "./lib/index.js",
   "scripts": {
