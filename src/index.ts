@@ -37,7 +37,7 @@ class RefinementType {
     }
   }
 
-  async test<Type>(data: Type): Promise<Type> {
+  test<Type>(data: Type): Promise<Type> {
     let promise: Promise<Type> | undefined;
     if (isObject(data)) {
       promise = this.buffer.get(data);
@@ -62,7 +62,7 @@ class RefinementType {
 
     return promise;
   }
-  async match<Type>(data: Type): Promise<Type> {
+  match<Type>(data: Type): Promise<Type> {
     return this.test(data);
   }
 
@@ -95,7 +95,7 @@ class RefinementType {
     return new RefinementType({ name: name ?? 'Not', matcher: RefinementType.notOperator, left: this });
   }
 
-  static async andOperator(this: RefinementType, data: Data): Promise<boolean> {
+  static andOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
       return Promise.all([
         this.left.test(data),
@@ -106,7 +106,7 @@ class RefinementType {
     }
     return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'and' operator`));
   }
-  static async orOperator(this: RefinementType, data: Data): Promise<boolean> {
+  static orOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
       return Promise.all([
         this.left.test(data).catch((val) => val),
@@ -123,7 +123,7 @@ class RefinementType {
     }
     return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'or' operator`));
   }
-  static async notOperator(this: RefinementType, data: Data): Promise<boolean> {
+  static notOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left) {
       return this.left.test(data)
         .then(
