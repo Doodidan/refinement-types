@@ -274,4 +274,4 @@ constructor(message: string);
 constructor(name?: Name, cause?: Error | Error[]);
 ```
 # Contributing
-Feel free to open an issue or pull requests. There is no any conributing guides currently.
+Feel free to open an issue or pull requests. There is no any contributing guides currently.
