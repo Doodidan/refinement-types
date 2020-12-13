@@ -10,6 +10,7 @@ import {
   isPairRefinementTypeCompositionExtended,
   isName,
   isMatcher,
+  isObject,
 } from './types';
 
 class RefinementType {
@@ -17,6 +18,8 @@ class RefinementType {
   name: Name;
   left?: RefinementType;
   right?: RefinementType;
+
+  buffer: WeakMap<object, Promise<any>> = new WeakMap();
 
   constructor(props: RefinementTypeOptions) {
     this.name = props.name;
@@ -35,16 +38,29 @@ class RefinementType {
   }
 
   async test<Type>(data: Type): Promise<Type> {
-    return new Promise((resolve, reject) => {
-      const result = this.matcher(data);
-      if (result === true) {
-        return resolve(data);
+    let promise: Promise<Type> | undefined;
+    if (isObject(data)) {
+      promise = this.buffer.get(data);
+    }
+
+    if (promise === undefined) {
+      promise = new Promise((resolve, reject) => {
+        const result = this.matcher(data);
+        if (result === true) {
+          return resolve(data);
+        }
+        if (result === false) {
+          return reject(new RefinementTypeCheckFailure(this.name));
+        }
+        result.then(() => resolve(data), (val: RefinementTypeCheckFailure) => reject(val));
+      });
+
+      if (isObject(data)) {
+        this.buffer.set(data, promise);
       }
-      if (result === false) {
-        return reject(new RefinementTypeCheckFailure(this.name));
-      }
-      result.then(() => resolve(data), (val: RefinementTypeCheckFailure) => reject(val));
-    });
+    }
+
+    return promise;
   }
   async match<Type>(data: Type): Promise<Type> {
     return this.test(data);
