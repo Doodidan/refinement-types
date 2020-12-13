@@ -1,3 +1,4 @@
+import { RefinementTypeCheckFailure, RefinementTypeInnerError } from './errors';
 import {
   Matcher,
   PairRefinementTypeCompositionOptions,
@@ -33,19 +34,19 @@ class RefinementType {
     }
   }
 
-  async test(data: Data): Promise<boolean> {
+  async test<Type>(data: Type): Promise<Type> {
     return new Promise((resolve, reject) => {
       const result = this.matcher(data);
       if (result === true) {
-        return resolve(true);
+        return resolve(data);
       }
       if (result === false) {
-        return reject(false);
+        return reject(new RefinementTypeCheckFailure(this.name));
       }
-      result.then((val) => resolve(val), (val) => reject(val));
+      result.then(() => resolve(data), (val: RefinementTypeCheckFailure) => reject(val));
     });
   }
-  async match(data: Data): Promise<boolean> {
+  async match<Type>(data: Type): Promise<Type> {
     return this.test(data);
   }
 
@@ -57,7 +58,7 @@ class RefinementType {
     } else {
       type = props;
     }
-    return new RefinementType({ name, matcher: RefinementType.andOperator, left: this, right: type });
+    return new RefinementType({ name: name ?? 'And', matcher: RefinementType.andOperator, left: this, right: type });
   }
   or(props: PairRefinementTypeCompositionOptions): RefinementType {
     let type: RefinementType, name: Name;
@@ -67,11 +68,11 @@ class RefinementType {
     } else {
       type = props;
     }
-    return new RefinementType({ name, matcher: RefinementType.orOperator, left: this, right: type });
+    return new RefinementType({ name: name ?? 'Or', matcher: RefinementType.orOperator, left: this, right: type });
   }
   not(props?: SingleRefinementTypeCompositionOptions): RefinementType {
-    const name: Name = isName(props) ? props : props.name;
-    return new RefinementType({ name, matcher: RefinementType.notOperator, left: this });
+    const name: Name = (isName(props) ? props : props.name);
+    return new RefinementType({ name: name ?? 'Not', matcher: RefinementType.notOperator, left: this });
   }
 
   static async andOperator(this: RefinementType, data: Data): Promise<boolean> {
@@ -80,32 +81,42 @@ class RefinementType {
         this.left.test(data),
         this.right.test(data),
       ])
-        .then(() => true)
+        .then(() => data)
+        .catch((val: RefinementTypeCheckFailure) => Promise.reject(new RefinementTypeCheckFailure(this.name, val)));
     }
-    return Promise.reject(false);
+    return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'and' operator`));
   }
   static async orOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
       return Promise.all([
-        this.left.test(data).catch(() => false),
-        this.right.test(data).catch(() => false),
+        this.left.test(data).catch((val) => val),
+        this.right.test(data).catch((val) => val),
       ])
         .then((arr) => {
           for (let item of arr) {
-            if (item) {
-              return true;
+            if (!(item instanceof RefinementTypeCheckFailure || item instanceof RefinementTypeInnerError)) {
+              return item;
             }
           }
-          return Promise.reject(false);
+          return Promise.reject(new RefinementTypeCheckFailure(this.name, arr));
         });
     }
-    return Promise.reject(false);
+    return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'or' operator`));
   }
   static async notOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left) {
-      return this.left.test(data).then(() => Promise.reject(false), () => Promise.resolve(true));
+      return this.left.test(data)
+        .then(
+          () => Promise.reject(
+            new RefinementTypeCheckFailure(
+              this.name,
+              new RefinementTypeCheckFailure(this.left?.name)
+            )
+          ),
+          () => Promise.resolve(data),
+        );
     }
-    return Promise.reject(false);
+    return Promise.reject(new RefinementTypeInnerError(`left side missing on 'not' operator`));
   }
 };
 
