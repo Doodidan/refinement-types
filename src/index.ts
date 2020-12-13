@@ -33,10 +33,19 @@ class RefinementType {
     }
   }
 
-  test(data: Data): boolean {
-    return this.matcher(data);
+  async test(data: Data): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      const result = this.matcher(data);
+      if (result === true) {
+        return resolve(true);
+      }
+      if (result === false) {
+        return reject(false);
+      }
+      result.then((val) => resolve(val), (val) => reject(val));
+    });
   }
-  match(data: Data): boolean {
+  async match(data: Data): Promise<boolean> {
     return this.test(data);
   }
 
@@ -65,23 +74,38 @@ class RefinementType {
     return new RefinementType({ name, matcher: RefinementType.notOperator, left: this });
   }
 
-  static andOperator(this: RefinementType, data: Data): boolean {
+  static async andOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
-      return this.left.test(data) && this.right.test(data);
+      return Promise.all([
+        this.left.test(data),
+        this.right.test(data),
+      ])
+        .then(() => true)
     }
-    return false;
+    return Promise.reject(false);
   }
-  static orOperator(this: RefinementType, data: Data): boolean {
+  static async orOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
-      return this.left.test(data) || this.right.test(data);
+      return Promise.all([
+        this.left.test(data).catch(() => false),
+        this.right.test(data).catch(() => false),
+      ])
+        .then((arr) => {
+          for (let item of arr) {
+            if (item) {
+              return true;
+            }
+          }
+          return Promise.reject(false);
+        });
     }
-    return false;
+    return Promise.reject(false);
   }
-  static notOperator(this: RefinementType, data: Data): boolean {
+  static async notOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left) {
-      return !this.left.test(data);
+      return this.left.test(data).then(() => Promise.reject(false), () => Promise.resolve(true));
     }
-    return false;
+    return Promise.reject(false);
   }
 };
 

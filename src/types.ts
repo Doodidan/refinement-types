@@ -1,7 +1,7 @@
 import RefinementType from ".";
 
 export type Data = any;
-export type Matcher = (data: Data) => boolean;
+export type Matcher = (data: Data) => boolean | Promise<boolean>;
 export type Name = string | undefined;
 
 export type RefinementTypePair = { left: RefinementType, right: RefinementType };
@@ -16,7 +16,7 @@ export type PairRefinementTypeCompositionOptions = PairRefinementTypeComposition
 export type SingleRefinementTypeCompositionOptions = { name?: Name } | Name;
 
 export function isMatcher(props: RefinementTypeOptions): props is Matcher {
-  return typeof props === 'function';
+  return typeof props === 'function' || props instanceof Promise;
 }
 export function isRefinementTypeOperatorOptions(props: RefinementTypeOptions): props is RefinementTypeOperatorOptions {
   return (props as RefinementTypeOperatorOptions).left !== undefined;
