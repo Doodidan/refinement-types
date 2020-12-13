@@ -50,6 +50,10 @@ class RefinementType {
     return this.test(data);
   }
 
+  pack<Type>(data: Type): () => Promise<Type> {
+    return () => this.test(data);
+  }
+
   and(props: PairRefinementTypeCompositionOptions): RefinementType {
     let type: RefinementType, name: Name;
     if (isPairRefinementTypeCompositionExtended(props)) {
