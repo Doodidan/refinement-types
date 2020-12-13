@@ -1,3 +1,4 @@
+import { RefinementTypeCheckFailure, RefinementTypeInnerError } from './errors';
 import {
   Matcher,
   PairRefinementTypeCompositionOptions,
@@ -9,6 +10,7 @@ import {
   isPairRefinementTypeCompositionExtended,
   isName,
   isMatcher,
+  isObject,
 } from './types';
 
 class RefinementType {
@@ -16,6 +18,8 @@ class RefinementType {
   name: Name;
   left?: RefinementType;
   right?: RefinementType;
+
+  buffer: WeakMap<object, Promise<any>> = new WeakMap();
 
   constructor(props: RefinementTypeOptions) {
     this.name = props.name;
@@ -33,11 +37,37 @@ class RefinementType {
     }
   }
 
-  test(data: Data): boolean {
-    return this.matcher(data);
+  async test<Type>(data: Type): Promise<Type> {
+    let promise: Promise<Type> | undefined;
+    if (isObject(data)) {
+      promise = this.buffer.get(data);
+    }
+
+    if (promise === undefined) {
+      promise = new Promise((resolve, reject) => {
+        const result = this.matcher(data);
+        if (result === true) {
+          return resolve(data);
+        }
+        if (result === false) {
+          return reject(new RefinementTypeCheckFailure(this.name));
+        }
+        result.then(() => resolve(data), (val: RefinementTypeCheckFailure) => reject(val));
+      });
+
+      if (isObject(data)) {
+        this.buffer.set(data, promise);
+      }
+    }
+
+    return promise;
   }
-  match(data: Data): boolean {
+  async match<Type>(data: Type): Promise<Type> {
     return this.test(data);
+  }
+
+  pack<Type>(data: Type): () => Promise<Type> {
+    return () => this.test(data);
   }
 
   and(props: PairRefinementTypeCompositionOptions): RefinementType {
@@ -48,7 +78,7 @@ class RefinementType {
     } else {
       type = props;
     }
-    return new RefinementType({ name, matcher: RefinementType.andOperator, left: this, right: type });
+    return new RefinementType({ name: name ?? 'And', matcher: RefinementType.andOperator, left: this, right: type });
   }
   or(props: PairRefinementTypeCompositionOptions): RefinementType {
     let type: RefinementType, name: Name;
@@ -58,30 +88,55 @@ class RefinementType {
     } else {
       type = props;
     }
-    return new RefinementType({ name, matcher: RefinementType.orOperator, left: this, right: type });
+    return new RefinementType({ name: name ?? 'Or', matcher: RefinementType.orOperator, left: this, right: type });
   }
   not(props?: SingleRefinementTypeCompositionOptions): RefinementType {
-    const name: Name = isName(props) ? props : props.name;
-    return new RefinementType({ name, matcher: RefinementType.notOperator, left: this });
+    const name: Name = (isName(props) ? props : props.name);
+    return new RefinementType({ name: name ?? 'Not', matcher: RefinementType.notOperator, left: this });
   }
 
-  static andOperator(this: RefinementType, data: Data): boolean {
+  static async andOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
-      return this.left.test(data) && this.right.test(data);
+      return Promise.all([
+        this.left.test(data),
+        this.right.test(data),
+      ])
+        .then(() => data)
+        .catch((val: RefinementTypeCheckFailure) => Promise.reject(new RefinementTypeCheckFailure(this.name, val)));
     }
-    return false;
+    return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'and' operator`));
   }
-  static orOperator(this: RefinementType, data: Data): boolean {
+  static async orOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left && this.right) {
-      return this.left.test(data) || this.right.test(data);
+      return Promise.all([
+        this.left.test(data).catch((val) => val),
+        this.right.test(data).catch((val) => val),
+      ])
+        .then((arr) => {
+          for (let item of arr) {
+            if (!(item instanceof RefinementTypeCheckFailure || item instanceof RefinementTypeInnerError)) {
+              return item;
+            }
+          }
+          return Promise.reject(new RefinementTypeCheckFailure(this.name, arr));
+        });
     }
-    return false;
+    return Promise.reject(new RefinementTypeInnerError(`left or right side missing on 'or' operator`));
   }
-  static notOperator(this: RefinementType, data: Data): boolean {
+  static async notOperator(this: RefinementType, data: Data): Promise<boolean> {
     if (this.left) {
-      return !this.left.test(data);
+      return this.left.test(data)
+        .then(
+          () => Promise.reject(
+            new RefinementTypeCheckFailure(
+              this.name,
+              new RefinementTypeCheckFailure(this.left?.name)
+            )
+          ),
+          () => Promise.resolve(data),
+        );
     }
-    return false;
+    return Promise.reject(new RefinementTypeInnerError(`left side missing on 'not' operator`));
   }
 };
 
