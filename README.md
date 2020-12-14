@@ -111,6 +111,29 @@ let data: string = 'Data for testing';
   }
 })();
 ```
+Also you can use type guard function as matcher:
+```ts
+let data: any = 'Hello world';
+
+function isString(data: any): data is string {
+  return typeof data === 'string';
+}
+
+const StringType = new RefinementType({
+  name: 'StringType',
+  matcher: isString,
+});
+
+(async () => {
+  try {
+    // RefinementType cannot convert data type internally so use 'as' to convert it explicitly
+    const val = await StringType.test(data as string);
+    console.log(val);
+  } catch (e) {
+    console.warn(e);
+  }
+})();
+```
 ## Composition
 To create a new type use type combination methods
 ### And
