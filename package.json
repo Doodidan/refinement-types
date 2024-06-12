@@ -1,6 +1,6 @@
 {
   "name": "refinement-types",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Refinement types system for runtime type and contracts checking",
   "main": "./lib/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GoshaEgorian/refinement-types.git"
+    "url": "git+https://github.com/Doodidan/refinement-types.git"
   },
   "keywords": [
     "refinement",
@@ -16,12 +16,12 @@
     "blood",
     "contracts"
   ],
-  "author": "Gosha Egorian",
+  "author": "George Romanov",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/GoshaEgorian/refinement-types/issues"
+    "url": "https://github.com/Doodidan/refinement-types/issues"
   },
-  "homepage": "https://github.com/GoshaEgorian/refinement-types#readme",
+  "homepage": "https://github.com/Doodidan/refinement-types#readme",
   "devDependencies": {
     "typescript": "^4.1.2"
   }
